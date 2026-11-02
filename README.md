@@ -95,12 +95,13 @@ utils/
   price_parser.py       "$10 to $20", "ILS 1,299.00", "Free shipping" -> number
   retry.py              retry decorator for flaky UI steps
   config_loader.py      YAML + .env + env-var overrides
-tests/test_ebay_e2e.py  data-driven E2E test (no locators, no waits - only the flow)
+tests/e2e/conftest.py   `flow` fixture: authentication (user or guest) before every E2E test
+tests/e2e/test_ebay_e2e.py  data-driven E2E test (no locators, no waits, no login - only the scenario)
 tests/unit/             unit tests: price parser, failure categories
 conftest.py             browser/page fixtures, scenario parametrization, trace & failure screenshot
 ```
 
-Layering: **test → flow → page objects → utils**. Tests read like the scenario; pages own locators; utils hold logic that doesn't depend on a page.
+Layering: **test → flow → page objects → utils**. Login runs in the `flow` fixture, so in Allure it appears under *Set up* and a login problem is never mistaken for a scenario failure. Tests read like the scenario; pages own locators; utils hold logic that doesn't depend on a page.
 
 | Spec function (TypeScript)       | Python                                   |
 |----------------------------------|------------------------------------------|

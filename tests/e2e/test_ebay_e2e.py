@@ -1,7 +1,6 @@
 import allure
 import pytest
 
-from flows import ShoppingFlow
 from utils.errors import no_items_message
 
 
@@ -12,19 +11,16 @@ from utils.errors import no_items_message
 @allure.description(
     "Searches eBay for items priced at or under max_price (with paging), adds them to the "
     "cart with random variants, and verifies the cart subtotal does not exceed "
-    "budget_per_item x number of items."
+    "budget_per_item x number of items. Authentication runs in the `flow` fixture."
 )
 @pytest.mark.e2e
-def test_cart_total_within_budget(page, config, scenario):
+def test_cart_total_within_budget(flow, scenario):
     allure.dynamic.title(
         f"{scenario['id']}: '{scenario['query']}' x{scenario['limit']} under {scenario['max_price']}"
     )
     for key in ("query", "max_price", "limit", "budget_per_item"):
         allure.dynamic.parameter(key, scenario[key])
 
-    flow = ShoppingFlow(page, config)
-
-    flow.authenticate()
     urls = flow.search_items_by_name_under_price(
         scenario["query"], scenario["max_price"], scenario["limit"]
     )
