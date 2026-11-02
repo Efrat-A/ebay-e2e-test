@@ -47,6 +47,12 @@ class BasePage:
         r"|service unavailable|temporarily unavailable|bad gateway|gateway time-?out)\s*([.!,:\-–]|$)",
         re.I,
     )
+    # Distinctive sentences from eBay's own error page body (e.g. "Please go back and try again").
+    # Specific enough to search anywhere in the page text; item descriptions live in an iframe.
+    _ERROR_BODY_TEXT = re.compile(
+        r"please go back and try again|we'?re having trouble (connecting|loading)|looks like this page doesn'?t exist",
+        re.I,
+    )
 
     @allure.step("Open {url}")
     def open(self, url: str) -> None:
@@ -56,8 +62,10 @@ class BasePage:
     def navigate(self, url: str) -> None:
         """Go to `url`, wait for the page to load, and make sure it is not an error page.
 
-        Error pages (HTTP 403/429/5xx, or an error title/heading) are refreshed with
-        growing pauses; after the configured retries a clear error is raised.
+        Error pages (HTTP 403/429/5xx, an error title/heading, or eBay's "Please go back
+        and try again" text) are retried with growing pauses by loading the ORIGINAL url
+        again - not reload(), which would just reload an error page eBay redirected to.
+        After the configured retries a clear error is raised.
         CAPTCHA pages are never refreshed - they raise BotChallengeError right away.
         """
         retries = self.config.get("retry", {}).get("page_error_retries", 2)
@@ -74,16 +82,18 @@ class BasePage:
                 if status and status >= 400:
                     log.warning("HTTP %s for %s (page content looks fine, continuing)", status, url)
                 return
+            if self.page.url != url:
+                reason += f", redirected to {self.page.url}"
             if attempt > retries:
                 self.screenshot(f"error_page_{status or 'content'}")
                 if status in self._BLOCKED_STATUSES:
                     raise AccessBlockedError(status, url, self.config.get("slow_mo_ms", 0), attempt)
                 raise PageErrorError(reason, url, attempt)
             pause = backoff * 2 ** (attempt - 1)
-            with allure.step(f"Error page ({reason}) - refresh #{attempt} after {pause:g}s"):
-                log.warning("Error page (%s) at %s - refresh #%d in %gs", reason, url, attempt, pause)
+            with allure.step(f"Error page ({reason}) - try again #{attempt} after {pause:g}s"):
+                log.warning("Error page (%s) for %s - try again #%d in %gs", reason, url, attempt, pause)
                 time.sleep(pause)
-                response = self.page.reload(wait_until="domcontentloaded")
+                response = self.page.goto(url, wait_until="domcontentloaded")
 
     def _wait_for_load(self) -> None:
         """Best-effort wait for the full page load; eBay keeps loading ads, so don't fail on it."""
@@ -101,6 +111,13 @@ class BasePage:
         for text in (title, heading_text):
             if self._ERROR_PAGE_TEXT.match(text):
                 return f"'{text.strip()[:60]}'"
+        try:
+            body = self.page.locator("body").inner_text(timeout=2000)
+        except Exception:
+            body = ""
+        match = self._ERROR_BODY_TEXT.search(body)
+        if match:
+            return f"page says '{match.group(0)}'"
         return None
 
     def ensure_no_bot_challenge(self) -> None:

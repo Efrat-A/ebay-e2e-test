@@ -16,7 +16,7 @@ profiles:
     retry:
       attempts: 3
       delay_sec: 1.5
-      page_error_retries: 2        # refreshes when an error page (403/429/5xx, 'Access Denied'...) is shown
+      page_error_retries: 2        # tries again when an error page is shown (403/429/5xx, 'Access Denied', 'Please go back and try again')
       page_error_backoff_sec: 3    # pause before refresh: 3s, then 6s, 12s...
     trace: retain-on-failure   # on | off | retain-on-failure
     price_range_strategy: max  # "$10 to $20" -> 20 (conservative, keeps cart under budget)
