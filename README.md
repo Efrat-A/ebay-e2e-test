@@ -29,6 +29,10 @@ make help           # list all targets
 ```
 
 Options: `make e2e PROFILE=ci`, `BROWSER=firefox make e2e`.
+
+**Headless or visible browser** - `pytest.ini` sets `headless = false`, so the browser window is shown by default.
+Override per run with `pytest --headless` / `pytest --headed` or `HEADLESS=true`.
+Precedence: CLI flag > `HEADLESS` env var > `pytest.ini` > config profile. `make ci` always runs headless.
 Direct pytest also works, e.g. `.venv/bin/pytest --data=data/other.json`.
 
 ## Reports

@@ -35,14 +35,14 @@ $(ALLURE):
 test: ## Run all tests (unit + e2e)
 	$(BIN)/pytest --profile=$(PROFILE)
 
-e2e: ## Run only the eBay E2E scenarios
+e2e: ## Run only the eBay E2E scenarios (browser visible, see pytest.ini)
 	$(BIN)/pytest -m e2e --profile=$(PROFILE)
 
 unit: ## Run fast unit tests (no browser)
 	$(BIN)/pytest tests/unit
 
 ci: ## Headless run with trace always on
-	$(MAKE) e2e PROFILE=ci
+	$(BIN)/pytest -m e2e --profile=ci --headless
 
 allure-generate: $(ALLURE) ## Build a single-file Allure HTML report (opens without a server)
 	$(ALLURE) generate $(RESULTS) -o $(REPORT) --clean --single-file

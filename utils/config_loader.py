@@ -20,8 +20,6 @@ def load_config(profile: str | None = None) -> dict[str, Any]:
     cfg = dict(raw["profiles"][name])
     cfg["profile"] = name
     # Env vars override file values (handy in CI)
-    if os.getenv("HEADLESS") is not None:
-        cfg["headless"] = os.getenv("HEADLESS", "").lower() in ("1", "true", "yes")
     if os.getenv("BROWSER"):
         cfg["browser"] = os.environ["BROWSER"]
     cfg["credentials"] = {
