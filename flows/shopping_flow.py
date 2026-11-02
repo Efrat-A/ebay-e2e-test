@@ -17,6 +17,7 @@ from playwright.sync_api import Page
 
 from pages import CartPage, ItemPage, LoginPage, SearchPage
 from utils.errors import BudgetExceededError
+from utils.overlays import install_overlay_handlers
 
 log = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class ShoppingFlow:
     def __init__(self, page: Page, config: dict[str, Any]):
         self.page = page
         self.config = config
+        install_overlay_handlers(page)
         self.login_page = LoginPage(page, config)
         self.search_page = SearchPage(page, config)
         self.item_page = ItemPage(page, config)

@@ -117,7 +117,8 @@ Layering: **test → flow → page objects → utils**. Tests read like the scen
 - **Paging**: continues to "Next" until `limit` items are found or pages run out; returns fewer (even 0) otherwise.
 - **Variants**: random enabled option for both native `<select>` and listbox-style pickers.
 - **Price parsing**: currencies, thousands separators, ranges (configurable `max`/`min`), non-price text.
-- **Retries** on flaky steps; popups are dismissed best-effort.
+- **Overlays**: the ship-to location dialog and the cookie banner are handled by `page.add_locator_handler` (`utils/overlays.py`), so they are dealt with whenever they block an action - even when they load late.
+- **Retries** on flaky steps; other popups are dismissed best-effort.
 
 ## Assumptions & limitations
 
