@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from utils.errors import (AccessBlockedError, AddToCartError, BotChallengeError, BudgetExceededError,
-                          ElementNotFoundError, LoginFailedError, PageErrorError, PriceParseError,
+                          ElementNotFoundError, LoginFailedError, NetworkError, PageErrorError, PriceParseError,
                           no_items_message)
 
 CATEGORIES = json.loads(
@@ -43,6 +43,7 @@ def as_recorded(error: BaseException) -> str:
     (AddToCartError(2, "https://www.ebay.com/itm/1", "out of stock"), "broken", "Add to cart not confirmed"),
     (LoginFailedError("efrat", "eBay says: 'wrong password'"), "broken", "Login failed"),
     (PriceParseError("See price", "cart subtotal"), "broken", "Price could not be parsed"),
+    (NetworkError("https://www.ebay.com/", "net::ERR_TUNNEL_CONNECTION_FAILED"), "broken", "Network / connectivity"),
     (TimeoutError("Timeout 30000ms exceeded.\n=== logs ==="), "broken", "Timeouts"),
     (AssertionError("assert 1 == 2"), "failed", "Other assertion failures"),
     (RuntimeError("boom"), "broken", "Unexpected errors"),

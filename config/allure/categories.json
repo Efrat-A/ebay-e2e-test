@@ -70,6 +70,15 @@
     "messageRegex": "(?s)(?:[\\w.]+: )?\\[NO ITEMS\\].*"
   },
   {
+    "name": "Network / connectivity",
+    "description": "The site could not be reached (DNS, proxy, VPN, no internet). Environmental - not a test defect.",
+    "matchedStatuses": [
+      "broken",
+      "failed"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[NETWORK\\].*"
+  },
+  {
     "name": "Timeouts",
     "description": "Page or element did not respond in time (slow network, heavy page).",
     "matchedStatuses": [

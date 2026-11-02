@@ -89,3 +89,11 @@ class PageErrorError(AutomationError):
             f"[PAGE ERROR] eBay showed an error page ({reason}) for {url} on all {attempts} "
             f"attempt(s), even after refreshing. The site may be having issues - re-run later."
         )
+
+
+class NetworkError(AutomationError):
+    def __init__(self, url: str, detail: str):
+        super().__init__(
+            f"[NETWORK] Could not reach {url} ({detail}). This is a connectivity problem, "
+            f"not a test failure - check the internet connection, VPN or proxy and re-run."
+        )

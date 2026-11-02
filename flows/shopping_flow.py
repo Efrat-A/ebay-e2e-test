@@ -32,11 +32,10 @@ class ShoppingFlow:
         self.item_page = ItemPage(page, config)
         self.cart_page = CartPage(page, config)
 
-    @allure.step("Authenticate")
-    def authenticate(self) -> str:
+    def authenticate(self) -> str:  # the LoginPage step already names this in the report
         return self.login_page.login_or_guest()
 
-    @allure.step("searchItemsByNameUnderPrice('{query}', {max_price}, {limit})")
+    @allure.step("searchItemsByNameUnderPrice({query}, {max_price}, {limit})")
     def search_items_by_name_under_price(self, query: str, max_price: float, limit: int = 5) -> list[str]:
         self.search_page.search(query)
         self.search_page.apply_max_price_filter(max_price)

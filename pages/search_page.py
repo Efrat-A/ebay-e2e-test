@@ -27,8 +27,9 @@ class SearchPage(BasePage):
     PRICE_SUBMIT = ["button[aria-label*='Submit price range']", "button[type='submit']:near(input[name='_udhi'])"]
     NEXT_PAGE = ["a.pagination__next:not([aria-disabled='true'])", "a[aria-label='Go to next search page']"]
 
-    @allure.step("Search for '{query}'")
+    # retry OUTSIDE the step: allure.step reads parameter names from the function it wraps
     @retry(attempts=2, delay_sec=1)
+    @allure.step("Search for {query}")
     def search(self, query: str) -> None:
         self.open(self.config["base_url"])
         self.smart("search box", self.SEARCH_INPUT).resolve().fill(query)

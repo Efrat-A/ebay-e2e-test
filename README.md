@@ -70,6 +70,7 @@ Every framework error has a tagged, self-explanatory message, for example:
 | Login failed | broken | wrong credentials / changed sign-in page |
 | Add to cart not confirmed | broken | out of stock, variant issue |
 | Price could not be parsed | broken | new price format |
+| Network / connectivity | broken | site unreachable (DNS, proxy, VPN) |
 | Timeouts | broken | slow page / network |
 | No items in price range | skipped | 0 results is a valid outcome |
 | Other assertion failures / Unexpected errors | failed / broken | anything else |

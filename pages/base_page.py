@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import allure
-from playwright.sync_api import Page
+from playwright.sync_api import Error as PlaywrightError, Page
 
-from utils.errors import AccessBlockedError, BotChallengeError, PageErrorError
+from utils.errors import AccessBlockedError, BotChallengeError, NetworkError, PageErrorError
 from utils.smart_locator import SmartLocator
 
 log = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ class BasePage:
         retries = self.config.get("retry", {}).get("page_error_retries", 2)
         backoff = self.config.get("retry", {}).get("page_error_backoff_sec", 3)
         log.info("Navigate %s", url)
-        response = self.page.goto(url, wait_until="domcontentloaded")
+        response = self._goto(url)
 
         for attempt in range(1, retries + 2):
             self._wait_for_load()
@@ -93,7 +93,18 @@ class BasePage:
             with allure.step(f"Error page ({reason}) - try again #{attempt} after {pause:g}s"):
                 log.warning("Error page (%s) for %s - try again #%d in %gs", reason, url, attempt, pause)
                 time.sleep(pause)
-                response = self.page.goto(url, wait_until="domcontentloaded")
+                response = self._goto(url)
+
+    _NET_ERROR = re.compile(r"net::ERR_[A-Z_]+|NS_ERROR_[A-Z_]+")
+
+    def _goto(self, url: str):
+        try:
+            return self.page.goto(url, wait_until="domcontentloaded")
+        except PlaywrightError as exc:
+            match = self._NET_ERROR.search(str(exc))
+            if match:
+                raise NetworkError(url, match.group(0)) from exc
+            raise
 
     def _wait_for_load(self) -> None:
         """Best-effort wait for the full page load; eBay keeps loading ads, so don't fail on it."""
