@@ -7,6 +7,7 @@ import allure
 from playwright.sync_api import Locator
 
 from pages.base_page import BasePage
+from utils.errors import AddToCartError, BotChallengeError, ElementNotFoundError
 from utils.retry import retry
 
 log = logging.getLogger(__name__)
@@ -27,36 +28,54 @@ class ItemPage(BasePage):
         "h1:has-text('Shopping cart')",
     ]
 
-    @retry(attempts=2, delay_sec=1.5)
+    @allure.step("Add item #{index} to cart")
     def add_to_cart(self, url: str, index: int) -> None:
-        with allure.step(f"Add item {index}: {url}"):
-            self.open(url)
-            self._select_random_variants()
-            self.smart("add_to_cart", self.ADD_TO_CART).resolve().click()
-            self.smart("added_confirmation", self.ADDED_CONFIRMATION).resolve(timeout_ms=10000)
-            self.screenshot(f"item_{index}_added")
-            log.info("Item %d added: %s", index, url)
+        try:
+            self._add_to_cart_with_retry(url, index)
+        except BotChallengeError:
+            raise
+        except ElementNotFoundError as exc:
+            raise AddToCartError(index, url, str(exc)) from exc
 
-    def _select_random_variants(self) -> None:
+    @retry(attempts=2, delay_sec=1.5, exceptions=(ElementNotFoundError,))
+    def _add_to_cart_with_retry(self, url: str, index: int) -> None:
+        self.open(url)
+        self.select_random_variants()
+        self.click_add_to_cart()
+        self.smart("'added to cart' confirmation", self.ADDED_CONFIRMATION).resolve(timeout_ms=10000)
+        self.screenshot(f"item_{index}_added")
+        log.info("Item %d added: %s", index, url)
+
+    @allure.step("Select random variants (size / color / quantity)")
+    def select_random_variants(self) -> None:
+        chosen = []
         for select in self.page.locator(self.SELECT_VARIANTS).all():
             options = [o for o in select.locator("option").all()
                        if o.get_attribute("value") not in (None, "", "-1") and o.is_enabled()]
             if options:
-                choice = random.choice(options).get_attribute("value")
-                select.select_option(choice)
-                log.info("Variant (select) -> %s", choice)
+                option = random.choice(options)
+                select.select_option(option.get_attribute("value"))
+                chosen.append(option.inner_text().strip())
         for button in self.page.locator(self.LISTBOX_VARIANTS).all():
-            self._pick_from_listbox(button)
+            picked = self._pick_from_listbox(button)
+            if picked:
+                chosen.append(picked)
+        allure.dynamic.parameter("variants", ", ".join(chosen) or "none required")
 
-    def _pick_from_listbox(self, button: Locator) -> None:
+    @allure.step("Click 'Add to cart'")
+    def click_add_to_cart(self) -> None:
+        self.smart("Add to cart button", self.ADD_TO_CART).resolve().click()
+
+    def _pick_from_listbox(self, button: Locator) -> str | None:
         button.click()
         options = self.page.locator(
             "div.listbox__options[role='listbox'] div[role='option']:not([aria-disabled='true'])"
         ).filter(has_not_text="Select")
         count = options.count()
-        if count:
-            choice = options.nth(random.randrange(count))
-            log.info("Variant (listbox) -> %s", choice.inner_text().strip())
-            choice.click()
-        else:
+        if not count:
             self.page.keyboard.press("Escape")
+            return None
+        choice = options.nth(random.randrange(count))
+        text = choice.inner_text().strip()
+        choice.click()
+        return text

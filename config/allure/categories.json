@@ -1,0 +1,88 @@
+[
+  {
+    "name": "Cart over budget (product defect)",
+    "description": "The cart subtotal is higher than budget_per_item x items. This is the business rule under test.",
+    "matchedStatuses": [
+      "failed"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[BUDGET EXCEEDED\\].*"
+  },
+  {
+    "name": "Element not found (page layout changed)",
+    "description": "None of the candidate selectors matched. Update the locator in the page object.",
+    "matchedStatuses": [
+      "broken",
+      "failed"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[ELEMENT NOT FOUND\\].*"
+  },
+  {
+    "name": "Blocked by bot protection",
+    "description": "eBay served a CAPTCHA / verification page. Environmental, not a test defect.",
+    "matchedStatuses": [
+      "broken",
+      "failed"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[BOT CHALLENGE\\].*"
+  },
+  {
+    "name": "Login failed",
+    "description": "Credentials were configured but sign-in did not succeed (wrong password, changed sign-in page).",
+    "matchedStatuses": [
+      "broken",
+      "failed"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[LOGIN FAILED\\].*"
+  },
+  {
+    "name": "Add to cart not confirmed",
+    "description": "The item page did not confirm the item was added (out of stock, variant not selectable, etc.).",
+    "matchedStatuses": [
+      "broken",
+      "failed"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[ADD TO CART\\].*"
+  },
+  {
+    "name": "Price could not be parsed",
+    "description": "A price string had an unexpected format.",
+    "matchedStatuses": [
+      "broken",
+      "failed"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[PRICE PARSE\\].*"
+  },
+  {
+    "name": "No items in price range",
+    "description": "Search returned nothing under max_price, so the scenario was skipped.",
+    "matchedStatuses": [
+      "skipped"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[NO ITEMS\\].*"
+  },
+  {
+    "name": "Timeouts",
+    "description": "Page or element did not respond in time (slow network, heavy page).",
+    "matchedStatuses": [
+      "broken",
+      "failed"
+    ],
+    "messageRegex": "(?s)(?![\\w.]+: \\[[A-Z ]+\\]).*(?:Timeout|timed out).*"
+  },
+  {
+    "name": "Other assertion failures",
+    "description": "A failed assertion that is not one of the known causes above.",
+    "matchedStatuses": [
+      "failed"
+    ],
+    "messageRegex": "(?s)(?![\\w.]+: \\[[A-Z ]+\\])(?!.*(?:Timeout|timed out)).*"
+  },
+  {
+    "name": "Unexpected errors",
+    "description": "An exception that is not one of the known causes above - investigate the stack trace.",
+    "matchedStatuses": [
+      "broken"
+    ],
+    "messageRegex": "(?s)(?![\\w.]+: \\[[A-Z ]+\\])(?!.*(?:Timeout|timed out)).*"
+  }
+]

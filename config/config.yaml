@@ -18,6 +18,7 @@ profiles:
       delay_sec: 1.5
     trace: retain-on-failure   # on | off | retain-on-failure
     price_range_strategy: max  # "$10 to $20" -> 20 (conservative, keeps cart under budget)
+    guest_fallback_on_challenge: true   # login CAPTCHA -> continue as guest (logged in report)
 
   ci:
     base_url: "https://www.ebay.com"
@@ -35,3 +36,4 @@ profiles:
       delay_sec: 2
     trace: on
     price_range_strategy: max
+    guest_fallback_on_challenge: false  # CI: a blocked login is a failure

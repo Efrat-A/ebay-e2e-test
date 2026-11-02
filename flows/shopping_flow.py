@@ -16,6 +16,7 @@ import allure
 from playwright.sync_api import Page
 
 from pages import CartPage, ItemPage, LoginPage, SearchPage
+from utils.errors import BudgetExceededError
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class ShoppingFlow:
         self.item_page = ItemPage(page, config)
         self.cart_page = CartPage(page, config)
 
-    @allure.step("Authenticate (user or guest)")
+    @allure.step("Authenticate")
     def authenticate(self) -> str:
         return self.login_page.login_or_guest()
 
@@ -38,7 +39,7 @@ class ShoppingFlow:
         self.search_page.search(query)
         self.search_page.apply_max_price_filter(max_price)
         urls = self.search_page.collect_item_urls(max_price, limit)
-        allure.attach("\n".join(urls) or "(none)", name="collected_urls",
+        allure.attach("\n".join(urls) or "(none)", name=f"collected_urls ({len(urls)})",
                       attachment_type=allure.attachment_type.TEXT)
         return urls
 
@@ -47,16 +48,16 @@ class ShoppingFlow:
         search_url = self.page.url
         for i, url in enumerate(urls, start=1):
             self.item_page.add_to_cart(url, i)
-            self.page.goto(search_url, wait_until="domcontentloaded")  # back to search, per spec
+            with allure.step("Return to search results"):
+                self.page.goto(search_url, wait_until="domcontentloaded")
 
     @allure.step("assertCartTotalNotExceeds({budget_per_item}, {items_count})")
     def assert_cart_total_not_exceeds(self, budget_per_item: float, items_count: int) -> None:
         self.cart_page.open_cart()
         total = self.cart_page.read_subtotal()
-        threshold = budget_per_item * items_count
         self.cart_page.screenshot("cart_total", full_page=True)
-        log.info("Cart total %.2f vs threshold %.2f", total.amount, threshold)
-        assert total.amount <= threshold, (
-            f"Cart total {total.amount} {total.currency or ''} exceeds "
-            f"{budget_per_item} x {items_count} = {threshold}"
-        )
+        threshold = budget_per_item * items_count
+        with allure.step(f"Verify subtotal {total.amount:.2f} <= {threshold:.2f}"):
+            log.info("Cart total %.2f vs threshold %.2f", total.amount, threshold)
+            if total.amount > threshold:
+                raise BudgetExceededError(total.amount, total.currency, budget_per_item, items_count)

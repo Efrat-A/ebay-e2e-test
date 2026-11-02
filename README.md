@@ -45,10 +45,38 @@ Every run produces:
 - **JUnit XML** at `reports/junit.xml` (for CI)
 - **Playwright trace** at `reports/traces/*.zip` (on failure, or always with `--profile=ci`). Open with `playwright show-trace <file>`.
 
+## Failure categories & error messages
+
+Every framework error has a tagged, self-explanatory message, for example:
+
+```
+[BUDGET EXCEEDED] Cart subtotal 512.40 ILS is above the allowed 220.00 x 2 item(s) = 440.00 ILS (over by 72.40 ILS).
+[ELEMENT NOT FOUND] 'Add to cart button' was not found on https://www.ebay.com/itm/... within 5000 ms. Tried selectors: [...]
+```
+
+`config/allure/categories.json` (copied into the results automatically) groups failures in the Allure *Categories* tab:
+
+| Category | Status | Meaning |
+|---|---|---|
+| Cart over budget (product defect) | failed | the business rule under test failed |
+| Element not found (page layout changed) | broken | update a locator |
+| Blocked by bot protection | broken | environmental (CAPTCHA) |
+| Login failed | broken | wrong credentials / changed sign-in page |
+| Add to cart not confirmed | broken | out of stock, variant issue |
+| Price could not be parsed | broken | new price format |
+| Timeouts | broken | slow page / network |
+| No items in price range | skipped | 0 results is a valid outcome |
+| Other assertion failures / Unexpected errors | failed / broken | anything else |
+
+Categories are mutually exclusive (verified by `tests/unit/test_categories.py`), so each failure is counted once.
+
+Every page-object action is an `@allure.step`, so the report shows the full flow as a step tree: spec function -> page action -> sub-step, with screenshots attached at the step where they were taken.
+
 ## Architecture
 
 ```
 config/config.yaml      environment profiles (local / ci): URLs, browser, timeouts, retries
+config/allure/          Allure categories.json
 data/test_data.json     test scenarios (query, max_price, limit, budget_per_item)
 pages/                  Page Objects - one class per page, locators live only here
   base_page.py          navigation, popup dismissal, screenshots
@@ -58,12 +86,13 @@ pages/                  Page Objects - one class per page, locators live only he
   cart_page.py          read subtotal
 flows/shopping_flow.py  the 4 required functions, composed from the pages
 utils/
+  errors.py             tagged domain errors (feed the Allure categories)
   smart_locator.py      multi-selector fallback for eBay's parallel layouts
   price_parser.py       "$10 to $20", "ILS 1,299.00", "Free shipping" -> number
   retry.py              retry decorator for flaky UI steps
   config_loader.py      YAML + .env + env-var overrides
 tests/test_ebay_e2e.py  data-driven E2E test (no locators, no waits - only the flow)
-tests/unit/             unit tests for the price parser
+tests/unit/             unit tests: price parser, failure categories
 conftest.py             browser/page fixtures, scenario parametrization, trace & failure screenshot
 ```
 
@@ -88,8 +117,12 @@ Layering: **test → flow → page objects → utils**. Tests read like the scen
 
 ## Assumptions & limitations
 
-- **Authentication**: eBay sign-in uses bot detection/CAPTCHA, which this project does not bypass. With no credentials (default) the test runs as **guest**; if a challenge appears during login it falls back to guest.
+- **Authentication**: with no credentials in `.env` (default) the test runs as **guest** - the cart works without an account. When credentials *are* set, any login failure raises `LoginFailedError`. eBay sign-in uses CAPTCHA, which this project does not bypass: in the `local` profile a CAPTCHA falls back to guest (recorded as `auth_mode` in the report); in `ci` (`guest_fallback_on_challenge: false`) it fails the run as *Blocked by bot protection*.
 - **Currency**: comparisons are numeric in whatever currency eBay displays (e.g. ILS when browsing from Israel). `max_price` and `budget_per_item` must be in that same currency.
 - **Price ranges**: an item listed as "$10 to $20" is treated as $20 by default, so the selected variant can never push the cart over budget.
 - **Cart total** is the subtotal shown on the cart page (before shipping/tax).
 - eBay may change its DOM or rate-limit automated traffic; selectors are kept in the page objects so they are easy to update.
+
+## Future improvements
+
+See [FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md).

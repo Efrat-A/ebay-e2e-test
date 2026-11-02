@@ -27,40 +27,44 @@ class SearchPage(BasePage):
     PRICE_SUBMIT = ["button[aria-label*='Submit price range']", "button[type='submit']:near(input[name='_udhi'])"]
     NEXT_PAGE = ["a.pagination__next:not([aria-disabled='true'])", "a[aria-label='Go to next search page']"]
 
+    @allure.step("Search for '{query}'")
     @retry(attempts=2, delay_sec=1)
     def search(self, query: str) -> None:
-        with allure.step(f"Search for '{query}'"):
-            self.open(self.config["base_url"])
-            self.smart("search_input", self.SEARCH_INPUT).resolve().fill(query)
-            self.smart("search_button", self.SEARCH_BUTTON).resolve().click()
-            self.page.wait_for_load_state("domcontentloaded")
+        self.open(self.config["base_url"])
+        self.smart("search box", self.SEARCH_INPUT).resolve().fill(query)
+        self.smart("search button", self.SEARCH_BUTTON).resolve().click()
+        self.page.wait_for_load_state("domcontentloaded")
+        self.ensure_no_bot_challenge()
 
+    @allure.step("Filter by max price {max_price}")
     def apply_max_price_filter(self, max_price: float) -> None:
         """Use the site's price filter if it's on the page, else the URL param eBay uses."""
-        with allure.step(f"Apply max price filter <= {max_price}"):
-            field = self.smart("max_price", self.MAX_PRICE_INPUT).try_resolve(timeout_ms=3000)
-            submit = self.smart("price_submit", self.PRICE_SUBMIT).try_resolve(timeout_ms=1000) if field else None
-            if field and submit:
-                field.fill(str(max_price))
-                submit.click()
-            else:
-                log.info("Price filter UI not found - using _udhi URL parameter")
-                self.page.goto(self._with_param(self.page.url, "_udhi", str(max_price)))
-            self.page.wait_for_load_state("domcontentloaded")
+        field = self.smart("max price field", self.MAX_PRICE_INPUT).try_resolve(timeout_ms=3000)
+        submit = self.smart("price submit", self.PRICE_SUBMIT).try_resolve(timeout_ms=1000) if field else None
+        if field and submit:
+            field.fill(str(max_price))
+            submit.click()
+            allure.dynamic.parameter("filter_method", "UI")
+        else:
+            log.info("Price filter UI not found - using _udhi URL parameter")
+            self.page.goto(self._with_param(self.page.url, "_udhi", str(max_price)))
+            allure.dynamic.parameter("filter_method", "URL _udhi")
+        self.page.wait_for_load_state("domcontentloaded")
 
+    @allure.step("Collect up to {limit} items priced <= {max_price}")
     def collect_item_urls(self, max_price: float, limit: int) -> list[str]:
         urls: list[str] = []
         page_no = 1
         while len(urls) < limit:
-            with allure.step(f"Scan results page {page_no}"):
-                urls += self._scan_current_page(max_price, limit - len(urls), seen=set(urls))
+            urls += self._scan_results_page(page_no, max_price, limit - len(urls), seen=set(urls))
             if len(urls) >= limit or not self._go_next_page():
                 break
             page_no += 1
         log.info("Collected %d item(s) under %s", len(urls), max_price)
         return urls
 
-    def _scan_current_page(self, max_price: float, needed: int, seen: set[str]) -> list[str]:
+    @allure.step("Scan results page {page_no}")
+    def _scan_results_page(self, page_no: int, max_price: float, needed: int, seen: set[str]) -> list[str]:
         found: list[str] = []
         cards = self.page.locator(f"xpath={self.RESULT_CARDS_XPATH}")
         strategy = self.config.get("price_range_strategy", "max")
@@ -73,19 +77,20 @@ class SearchPage(BasePage):
             if price_el.count() == 0 or link_el.count() == 0:
                 continue  # ad slots / "shop on eBay" placeholders
             price = parse_price(price_el.inner_text(), strategy)
-            href = link_el.get_attribute("href") or ""
-            url = href.split("?")[0]
+            url = (link_el.get_attribute("href") or "").split("?")[0]
             if price and price.amount <= max_price and url and url not in seen:
                 found.append(url)
                 seen.add(url)
+        log.info("Page %d: %d matching item(s)", page_no, len(found))
         return found
 
     def _go_next_page(self) -> bool:
-        nxt = self.smart("next_page", self.NEXT_PAGE).try_resolve(timeout_ms=2000)
+        nxt = self.smart("next page", self.NEXT_PAGE).try_resolve(timeout_ms=2000)
         if not nxt:
             return False
-        nxt.click()
-        self.page.wait_for_load_state("domcontentloaded")
+        with allure.step("Go to next results page"):
+            nxt.click()
+            self.page.wait_for_load_state("domcontentloaded")
         return True
 
     @staticmethod

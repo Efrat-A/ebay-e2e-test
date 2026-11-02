@@ -8,6 +8,7 @@ from typing import Any, Sequence
 import allure
 from playwright.sync_api import Page
 
+from utils.errors import BotChallengeError
 from utils.smart_locator import SmartLocator
 
 log = logging.getLogger(__name__)
@@ -24,6 +25,8 @@ class BasePage:
         "button.lightbox-dialog__close",
         "button[aria-label='Close']",
     ]
+    _CHALLENGE_URL = re.compile(r"/splashui/(challenge|captcha)", re.I)
+    _CHALLENGE_FRAME = "iframe[src*='captcha'], iframe[title*='challenge' i]"
 
     def __init__(self, page: Page, config: dict[str, Any]):
         self.page = page
@@ -34,10 +37,17 @@ class BasePage:
     def smart(self, name: str, candidates: Sequence[str]) -> SmartLocator:
         return SmartLocator(self.page, name, candidates)
 
+    @allure.step("Open {url}")
     def open(self, url: str) -> None:
         log.info("Open %s", url)
         self.page.goto(url, wait_until="domcontentloaded")
+        self.ensure_no_bot_challenge()
         self.dismiss_popups()
+
+    def ensure_no_bot_challenge(self) -> None:
+        if self._CHALLENGE_URL.search(self.page.url) or self.page.locator(self._CHALLENGE_FRAME).count():
+            self.screenshot("bot_challenge")
+            raise BotChallengeError(self.page.url)
 
     def dismiss_popups(self) -> None:
         for selector in self._DISMISSABLES:

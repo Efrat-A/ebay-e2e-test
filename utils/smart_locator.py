@@ -9,6 +9,8 @@ from typing import Sequence
 
 from playwright.sync_api import Locator, Page, TimeoutError as PwTimeout
 
+from utils.errors import ElementNotFoundError
+
 log = logging.getLogger(__name__)
 
 
@@ -28,12 +30,12 @@ class SmartLocator:
                 return loc
             except PwTimeout:
                 log.debug("[%s] no match for %s", self.name, selector)
-        raise LookupError(f"'{self.name}': none of {self.candidates} matched")
+        raise ElementNotFoundError(self.name, self.page.url, self.candidates, timeout_ms)
 
     def try_resolve(self, timeout_ms: int = 2000, state: str = "visible") -> Locator | None:
         try:
             return self.resolve(timeout_ms, state)
-        except LookupError:
+        except ElementNotFoundError:
             return None
 
     def all(self) -> Locator:

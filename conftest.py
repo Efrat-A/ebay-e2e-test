@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import shutil
 from pathlib import Path
 
 import allure
@@ -10,7 +11,9 @@ from playwright.sync_api import sync_playwright
 
 from utils.config_loader import load_config, load_scenarios
 
-REPORTS = Path(__file__).resolve().parent / "reports"
+ROOT = Path(__file__).resolve().parent
+REPORTS = ROOT / "reports"
+CATEGORIES = ROOT / "config" / "allure" / "categories.json"
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
 
 
@@ -70,3 +73,11 @@ def page(browser, config, request):
         else:
             context.tracing.stop()
     context.close()
+
+
+def pytest_sessionfinish(session):
+    """Copy Allure categories next to the results so the report groups failures by cause."""
+    results_dir = session.config.getoption("allure_report_dir", default=None)
+    if results_dir and CATEGORIES.exists():
+        Path(results_dir).mkdir(parents=True, exist_ok=True)
+        shutil.copy(CATEGORIES, Path(results_dir) / "categories.json")
