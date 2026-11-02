@@ -1,0 +1,37 @@
+# Environment profiles. Select with:  pytest --profile=ci   or   ENV_PROFILE=ci
+default_profile: local
+
+profiles:
+  local:
+    base_url: "https://www.ebay.com"
+    cart_url: "https://cart.ebay.com"
+    browser: chromium          # chromium | firefox | webkit
+    headless: false
+    slow_mo_ms: 0
+    viewport: { width: 1440, height: 900 }
+    locale: "en-US"
+    timeouts:
+      default_ms: 15000
+      navigation_ms: 30000
+    retry:
+      attempts: 3
+      delay_sec: 1.5
+    trace: retain-on-failure   # on | off | retain-on-failure
+    price_range_strategy: max  # "$10 to $20" -> 20 (conservative, keeps cart under budget)
+
+  ci:
+    base_url: "https://www.ebay.com"
+    cart_url: "https://cart.ebay.com"
+    browser: chromium
+    headless: true
+    slow_mo_ms: 0
+    viewport: { width: 1440, height: 900 }
+    locale: "en-US"
+    timeouts:
+      default_ms: 20000
+      navigation_ms: 45000
+    retry:
+      attempts: 3
+      delay_sec: 2
+    trace: on
+    price_range_strategy: max

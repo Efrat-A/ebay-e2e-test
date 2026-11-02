@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Test output (reports, screenshots, traces)
+reports/
+
+# Local Allure CLI downloaded by `make install`
+.tools/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Leftovers
+_to_delete/
+*.zip
