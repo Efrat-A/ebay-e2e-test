@@ -16,6 +16,17 @@ Write `environment.properties` into the results folder (profile, browser, base U
 ### Executor info and published reports
 Add `executor.json` (build number, CI link) and publish the HTML report from CI (e.g. GitHub Pages) so a reviewer can open the latest run from a link.
 
+## Test environment
+
+### Run against a test environment instead of production
+eBay's bot protection is the main source of flakiness (HTTP 403, "Please go back and try again", CAPTCHA). The robust fix is organisational, not technical: run against an environment where automation is expected - a staging site with a QA bot-protection bypass header/token, allow-listed CI IP addresses, or eBay's [Sandbox](https://developer.ebay.com/tools/sandbox) (test users and test money; covers a subset of the site, so search scenarios would need verifying there). The base URL and cart URL are already in the config profiles, so this is a new profile, not a code change.
+
+### Log in once per run and share the session
+Authenticate once in a session-scoped fixture, save cookies/localStorage with Playwright's `storage_state`, and start every test context from it (optionally reuse the file across runs while it is fresh). Fewer logins and first-visit pages mean fewer bot-protection triggers. Prerequisites before enabling it:
+- a shared session shares the cart, so every test must start by emptying the cart;
+- with a real account the cart is stored server-side and survives between runs - use a dedicated test account only, never a personal one;
+- keep the saved state file out of git (it contains session cookies) and expire it in CI.
+
 ## CI / execution
 
 - **GitHub Actions workflow**: lint, unit tests on every push; E2E on a schedule and on demand; upload Allure results, traces and screenshots as artifacts.
