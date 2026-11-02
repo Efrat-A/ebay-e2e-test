@@ -64,7 +64,7 @@ Every framework error has a tagged, self-explanatory message, for example:
 |---|---|---|
 | Cart over budget (product defect) | failed | the business rule under test failed |
 | Element not found (page layout changed) | broken | update a locator |
-| Blocked by bot protection | broken | environmental (CAPTCHA) |
+| Blocked by bot protection | broken | HTTP 403/429 or CAPTCHA - environmental; slow down via `slow_mo_ms` |
 | Login failed | broken | wrong credentials / changed sign-in page |
 | Add to cart not confirmed | broken | out of stock, variant issue |
 | Price could not be parsed | broken | new price format |
@@ -127,6 +127,7 @@ Layering: **test → flow → page objects → utils**. Login runs in the `flow`
 - **Currency**: comparisons are numeric in whatever currency eBay displays (e.g. ILS when browsing from Israel). `max_price` and `budget_per_item` must be in that same currency.
 - **Price ranges**: an item listed as "$10 to $20" is treated as $20 by default, so the selected variant can never push the cart over budget.
 - **Cart total** is the subtotal shown on the cart page (before shipping/tax).
+- **Bot protection**: eBay may answer automated traffic with HTTP 403. Every navigation checks the status code and fails with a clear `[BLOCKED]` message (plus a screenshot) instead of a confusing locator timeout. `slow_mo_ms` (default 500 ms) slows the pace to reduce this.
 - eBay may change its DOM or rate-limit automated traffic; selectors are kept in the page objects so they are easy to update.
 
 ## Future improvements

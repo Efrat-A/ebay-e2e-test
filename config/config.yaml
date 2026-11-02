@@ -7,7 +7,7 @@ profiles:
     cart_url: "https://cart.ebay.com"
     browser: chromium          # chromium | firefox | webkit
     headless: false
-    slow_mo_ms: 0
+    slow_mo_ms: 500   # pause after each browser action - slower pace, less likely to trigger eBay's bot protection (403)
     viewport: { width: 1440, height: 900 }
     locale: "en-US"
     timeouts:
@@ -25,7 +25,7 @@ profiles:
     cart_url: "https://cart.ebay.com"
     browser: chromium
     headless: true
-    slow_mo_ms: 0
+    slow_mo_ms: 500
     viewport: { width: 1440, height: 900 }
     locale: "en-US"
     timeouts:

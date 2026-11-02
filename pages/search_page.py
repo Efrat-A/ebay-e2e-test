@@ -47,7 +47,7 @@ class SearchPage(BasePage):
             allure.dynamic.parameter("filter_method", "UI")
         else:
             log.info("Price filter UI not found - using _udhi URL parameter")
-            self.page.goto(self._with_param(self.page.url, "_udhi", str(max_price)))
+            self.navigate(self._with_param(self.page.url, "_udhi", str(max_price)))
             allure.dynamic.parameter("filter_method", "URL _udhi")
         self.page.wait_for_load_state("domcontentloaded")
 

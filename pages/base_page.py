@@ -8,7 +8,7 @@ from typing import Any, Sequence
 import allure
 from playwright.sync_api import Page
 
-from utils.errors import BotChallengeError
+from utils.errors import AccessBlockedError, BotChallengeError
 from utils.smart_locator import SmartLocator
 
 log = logging.getLogger(__name__)
@@ -37,12 +37,24 @@ class BasePage:
     def smart(self, name: str, candidates: Sequence[str]) -> SmartLocator:
         return SmartLocator(self.page, name, candidates)
 
+    _BLOCKED_STATUSES = (403, 429)
+
     @allure.step("Open {url}")
     def open(self, url: str) -> None:
-        log.info("Open %s", url)
-        self.page.goto(url, wait_until="domcontentloaded")
-        self.ensure_no_bot_challenge()
+        self.navigate(url)
         self.dismiss_popups()
+
+    def navigate(self, url: str) -> None:
+        """page.goto + check the HTTP status and bot-challenge pages."""
+        log.info("Navigate %s", url)
+        response = self.page.goto(url, wait_until="domcontentloaded")
+        status = response.status if response else None
+        if status in self._BLOCKED_STATUSES:
+            self.screenshot(f"blocked_{status}")
+            raise AccessBlockedError(status, url, self.config.get("slow_mo_ms", 0))
+        if status and status >= 400:
+            log.warning("HTTP %s for %s", status, url)
+        self.ensure_no_bot_challenge()
 
     def ensure_no_bot_challenge(self) -> None:
         if self._CHALLENGE_URL.search(self.page.url) or self.page.locator(self._CHALLENGE_FRAME).count():

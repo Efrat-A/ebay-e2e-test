@@ -51,7 +51,7 @@ class ShoppingFlow:
         for i, url in enumerate(urls, start=1):
             self.item_page.add_to_cart(url, i)
             with allure.step("Return to search results"):
-                self.page.goto(search_url, wait_until="domcontentloaded")
+                self.search_page.navigate(search_url)
 
     @allure.step("assertCartTotalNotExceeds({budget_per_item}, {items_count})")
     def assert_cart_total_not_exceeds(self, budget_per_item: float, items_count: int) -> None:

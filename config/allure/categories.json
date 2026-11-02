@@ -18,12 +18,12 @@
   },
   {
     "name": "Blocked by bot protection",
-    "description": "eBay served a CAPTCHA / verification page. Environmental, not a test defect.",
+    "description": "eBay rejected the request (HTTP 403/429) or served a CAPTCHA. Environmental, not a test defect - slow down (slow_mo_ms) or retry later.",
     "matchedStatuses": [
       "broken",
       "failed"
     ],
-    "messageRegex": "(?s)(?:[\\w.]+: )?\\[BOT CHALLENGE\\].*"
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[(?:BOT CHALLENGE|BLOCKED)\\].*"
   },
   {
     "name": "Login failed",
