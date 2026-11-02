@@ -26,6 +26,15 @@
     "messageRegex": "(?s)(?:[\\w.]+: )?\\[(?:BOT CHALLENGE|BLOCKED)\\].*"
   },
   {
+    "name": "eBay error page",
+    "description": "eBay kept showing an error page (5xx, 'Something went wrong') even after refreshing. Site-side issue - re-run later.",
+    "matchedStatuses": [
+      "broken",
+      "failed"
+    ],
+    "messageRegex": "(?s)(?:[\\w.]+: )?\\[PAGE ERROR\\].*"
+  },
+  {
     "name": "Login failed",
     "description": "Credentials were configured but sign-in did not succeed (wrong password, changed sign-in page).",
     "matchedStatuses": [

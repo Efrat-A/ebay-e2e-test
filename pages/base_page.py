@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any, Sequence
 
 import allure
 from playwright.sync_api import Page
 
-from utils.errors import AccessBlockedError, BotChallengeError
+from utils.errors import AccessBlockedError, BotChallengeError, PageErrorError
 from utils.smart_locator import SmartLocator
 
 log = logging.getLogger(__name__)
@@ -38,6 +39,14 @@ class BasePage:
         return SmartLocator(self.page, name, candidates)
 
     _BLOCKED_STATUSES = (403, 429)
+    # Titles / headings of eBay (and CDN) error pages that are worth a refresh.
+    # The phrase must be the whole text or be followed by punctuation, so an item
+    # page titled e.g. "Access Denied Hoodie" is not mistaken for an error page.
+    _ERROR_PAGE_TEXT = re.compile(
+        r"^\s*(access denied|something went wrong|we'?re sorry|page (is )?not responding"
+        r"|service unavailable|temporarily unavailable|bad gateway|gateway time-?out)\s*([.!,:\-–]|$)",
+        re.I,
+    )
 
     @allure.step("Open {url}")
     def open(self, url: str) -> None:
@@ -45,16 +54,54 @@ class BasePage:
         self.dismiss_popups()
 
     def navigate(self, url: str) -> None:
-        """page.goto + check the HTTP status and bot-challenge pages."""
+        """Go to `url`, wait for the page to load, and make sure it is not an error page.
+
+        Error pages (HTTP 403/429/5xx, or an error title/heading) are refreshed with
+        growing pauses; after the configured retries a clear error is raised.
+        CAPTCHA pages are never refreshed - they raise BotChallengeError right away.
+        """
+        retries = self.config.get("retry", {}).get("page_error_retries", 2)
+        backoff = self.config.get("retry", {}).get("page_error_backoff_sec", 3)
         log.info("Navigate %s", url)
         response = self.page.goto(url, wait_until="domcontentloaded")
-        status = response.status if response else None
-        if status in self._BLOCKED_STATUSES:
-            self.screenshot(f"blocked_{status}")
-            raise AccessBlockedError(status, url, self.config.get("slow_mo_ms", 0))
-        if status and status >= 400:
-            log.warning("HTTP %s for %s", status, url)
-        self.ensure_no_bot_challenge()
+
+        for attempt in range(1, retries + 2):
+            self._wait_for_load()
+            self.ensure_no_bot_challenge()
+            status = response.status if response else None
+            reason = self._error_page_reason(status)
+            if reason is None:
+                if status and status >= 400:
+                    log.warning("HTTP %s for %s (page content looks fine, continuing)", status, url)
+                return
+            if attempt > retries:
+                self.screenshot(f"error_page_{status or 'content'}")
+                if status in self._BLOCKED_STATUSES:
+                    raise AccessBlockedError(status, url, self.config.get("slow_mo_ms", 0), attempt)
+                raise PageErrorError(reason, url, attempt)
+            pause = backoff * 2 ** (attempt - 1)
+            with allure.step(f"Error page ({reason}) - refresh #{attempt} after {pause:g}s"):
+                log.warning("Error page (%s) at %s - refresh #%d in %gs", reason, url, attempt, pause)
+                time.sleep(pause)
+                response = self.page.reload(wait_until="domcontentloaded")
+
+    def _wait_for_load(self) -> None:
+        """Best-effort wait for the full page load; eBay keeps loading ads, so don't fail on it."""
+        try:
+            self.page.wait_for_load_state("load", timeout=self.config["timeouts"]["navigation_ms"] // 2)
+        except Exception:
+            log.debug("Page 'load' event not reached in time - continuing with DOM content")
+
+    def _error_page_reason(self, status: int | None) -> str | None:
+        if status in self._BLOCKED_STATUSES or (status and status >= 500):
+            return f"HTTP {status}"
+        title = self.page.title() or ""
+        heading = self.page.locator("h1").first
+        heading_text = heading.inner_text(timeout=1000) if heading.count() else ""
+        for text in (title, heading_text):
+            if self._ERROR_PAGE_TEXT.match(text):
+                return f"'{text.strip()[:60]}'"
+        return None
 
     def ensure_no_bot_challenge(self) -> None:
         if self._CHALLENGE_URL.search(self.page.url) or self.page.locator(self._CHALLENGE_FRAME).count():

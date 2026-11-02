@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from utils.errors import (AccessBlockedError, AddToCartError, BotChallengeError, BudgetExceededError,
-                          ElementNotFoundError, LoginFailedError, PriceParseError,
+                          ElementNotFoundError, LoginFailedError, PageErrorError, PriceParseError,
                           no_items_message)
 
 CATEGORIES = json.loads(
@@ -39,6 +39,7 @@ def as_recorded(error: BaseException) -> str:
      "broken", "Element not found (page layout changed)"),
     (BotChallengeError("https://www.ebay.com/splashui/challenge"), "broken", "Blocked by bot protection"),
     (AccessBlockedError(403, "https://www.ebay.com/itm/317727161471", 500), "broken", "Blocked by bot protection"),
+    (PageErrorError("HTTP 503", "https://www.ebay.com/sch/i.html", 3), "broken", "eBay error page"),
     (AddToCartError(2, "https://www.ebay.com/itm/1", "out of stock"), "broken", "Add to cart not confirmed"),
     (LoginFailedError("efrat", "eBay says: 'wrong password'"), "broken", "Login failed"),
     (PriceParseError("See price", "cart subtotal"), "broken", "Price could not be parsed"),

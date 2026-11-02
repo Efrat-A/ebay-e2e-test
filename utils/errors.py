@@ -74,10 +74,18 @@ class LoginFailedError(AutomationError):
 
 
 class AccessBlockedError(AutomationError):
-    def __init__(self, status: int, url: str, slow_mo_ms: int):
+    def __init__(self, status: int, url: str, slow_mo_ms: int, attempts: int = 1):
         super().__init__(
-            f"[BLOCKED] eBay responded HTTP {status} for {url} - the request was rejected, "
-            f"most likely by eBay's bot protection. "
+            f"[BLOCKED] eBay responded HTTP {status} for {url} on all {attempts} attempt(s) "
+            f"(page was refreshed with growing pauses in between) - most likely eBay's bot protection. "
             f"Note: try a slower pace by increasing slow_mo_ms in config/config.yaml "
             f"(current: {slow_mo_ms} ms), or wait a few minutes before re-running."
+        )
+
+
+class PageErrorError(AutomationError):
+    def __init__(self, reason: str, url: str, attempts: int):
+        super().__init__(
+            f"[PAGE ERROR] eBay showed an error page ({reason}) for {url} on all {attempts} "
+            f"attempt(s), even after refreshing. The site may be having issues - re-run later."
         )
