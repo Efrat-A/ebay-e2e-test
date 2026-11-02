@@ -46,6 +46,7 @@ The report is generated as a **single self-contained HTML file**, so it opens st
 
 Every run produces:
 - **Allure report** with a step per function, a screenshot per item added, the cart screenshot and the collected URLs
+- **Browser console log** attached to failed tests: console messages, uncaught page errors and HTTP responses >= 400 (only when there were any). The same lines go to Python logging under the `browser` logger - see them live with `pytest --log-cli-level=DEBUG`.
 - **JUnit XML** at `reports/junit.xml` (for CI)
 - **Playwright trace** at `reports/traces/*.zip` (on failure, or always with `--profile=ci`). Open with `playwright show-trace <file>`.
 
@@ -90,6 +91,7 @@ pages/                  Page Objects - one class per page, locators live only he
   cart_page.py          read subtotal
 flows/shopping_flow.py  the 4 required functions, composed from the pages
 utils/
+  browser_logs.py       console / page errors / HTTP >= 400 -> logging + failure attachment
   errors.py             tagged domain errors (feed the Allure categories)
   smart_locator.py      multi-selector fallback for eBay's parallel layouts
   price_parser.py       "$10 to $20", "ILS 1,299.00", "Free shipping" -> number

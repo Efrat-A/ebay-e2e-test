@@ -10,6 +10,7 @@ import allure
 import pytest
 from playwright.sync_api import sync_playwright
 
+from utils.browser_logs import BrowserLogCollector
 from utils.config_loader import load_config, load_scenarios
 
 ROOT = Path(__file__).resolve().parent
@@ -82,13 +83,19 @@ def page(browser, config, request):
     if tracing:
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
     page = context.new_page()
+    browser_logs = BrowserLogCollector().attach_to(page)
     yield page
 
-    failed = getattr(request.node, "rep_call", None) and request.node.rep_call.failed
+    # setup failures (e.g. login in the `flow` fixture) count too, not only the test body
+    failed = any(getattr(getattr(request.node, f"rep_{when}", None), "failed", False)
+                 for when in ("setup", "call"))
     safe = re.sub(r"[^\w\-]+", "_", request.node.name)
     if failed:
         allure.attach(page.screenshot(full_page=True), name="failure_screenshot",
                       attachment_type=allure.attachment_type.PNG)
+        if browser_logs:
+            allure.attach(browser_logs.as_text(), name="browser_console_log",
+                          attachment_type=allure.attachment_type.TEXT)
     if tracing:
         if config["trace"] == "on" or failed:
             trace = REPORTS / "traces" / f"{safe}.zip"
