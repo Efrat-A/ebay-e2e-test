@@ -30,6 +30,8 @@ make help           # list all targets
 
 Options: `make e2e PROFILE=ci`, `BROWSER=firefox make e2e`.
 
+Profiles can inherit with `extends:`. `realistic_ua` (extends `local`) is an experiment with a fixed desktop-Chrome User-Agent, US locale/timezone and a Full-HD viewport: `make e2e PROFILE=realistic_ua`.
+
 **Headless or visible browser** - `pytest.ini` sets `headless = false`, so the browser window is shown by default.
 Override per run with `pytest --headless` / `pytest --headed` or `HEADLESS=true`.
 Precedence: CLI flag > `HEADLESS` env var > `pytest.ini` > config profile. `make ci` always runs headless.

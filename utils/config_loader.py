@@ -12,12 +12,30 @@ ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
 
+def _deep_merge(base: dict, override: dict) -> dict:
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _resolve_profile(profiles: dict, name: str, seen: tuple = ()) -> dict:
+    if name not in profiles:
+        raise ValueError(f"Unknown profile '{name}'. Available: {list(profiles)}")
+    if name in seen:
+        raise ValueError(f"Circular 'extends' in profiles: {' -> '.join(seen + (name,))}")
+    profile = dict(profiles[name])
+    parent = profile.pop("extends", None)
+    return _deep_merge(_resolve_profile(profiles, parent, seen + (name,)), profile) if parent else profile
+
+
 def load_config(profile: str | None = None) -> dict[str, Any]:
     raw = yaml.safe_load((ROOT / "config" / "config.yaml").read_text(encoding="utf-8"))
     name = profile or os.getenv("ENV_PROFILE") or raw["default_profile"]
-    if name not in raw["profiles"]:
-        raise ValueError(f"Unknown profile '{name}'. Available: {list(raw['profiles'])}")
-    cfg = dict(raw["profiles"][name])
+    cfg = _resolve_profile(raw["profiles"], name)
     cfg["profile"] = name
     # Env vars override file values (handy in CI)
     if os.getenv("BROWSER"):

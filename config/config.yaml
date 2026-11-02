@@ -41,3 +41,14 @@ profiles:
     trace: on
     price_range_strategy: max
     guest_fallback_on_challenge: false  # CI: a blocked login is a failure
+
+  # Experiment: browser identity used in another public solution of this assignment
+  # (AlonHrtmn/ebay-testing). Fixed desktop-Chrome User-Agent, US locale/timezone,
+  # Full-HD viewport. Run:  make e2e PROFILE=realistic_ua   and compare with the default.
+  realistic_ua:
+    extends: local
+    viewport: { width: 1920, height: 1080 }
+    device_scale_factor: 1
+    locale: "en-US"
+    timezone_id: "America/New_York"
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"

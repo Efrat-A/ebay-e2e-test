@@ -70,6 +70,16 @@ def browser(config):
         browser.close()
 
 
+def _context_options(config) -> dict:
+    """Browser context settings from the profile. Optional keys are only passed when set,
+    so Playwright's own defaults (e.g. its real User-Agent) apply otherwise."""
+    options = {"viewport": config["viewport"], "locale": config["locale"]}
+    for key in ("user_agent", "timezone_id", "device_scale_factor", "extra_http_headers"):
+        if config.get(key) is not None:
+            options[key] = config[key]
+    return options
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
@@ -78,7 +88,7 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.fixture
 def page(browser, config, request):
-    context = browser.new_context(viewport=config["viewport"], locale=config["locale"])
+    context = browser.new_context(**_context_options(config))
     tracing = config["trace"] != "off"
     if tracing:
         context.tracing.start(screenshots=True, snapshots=True, sources=True)
