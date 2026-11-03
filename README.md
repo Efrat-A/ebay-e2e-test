@@ -21,65 +21,25 @@ make install        # .venv + packages + Chromium + local Allure CLI + .env from
 
 ```bash
 make run            # E2E -> build report -> open it in the browser
-make e2e            # E2E scenarios only, profile "local" (browser visible)
+make e2e            # E2E scenarios only, profile "local" (headless by default)
 make ci             # headless, trace always on
 make unit           # fast unit tests (no browser)
 make test           # everything
 make help           # list all targets
 ```
 
-Options: `make e2e PROFILE=ci`, `BROWSER=firefox make e2e`.
+Options: `make e2e PROFILE=ci`, `BROWSER=firefox make e2e` (also `webkit`). `make install` downloads all three browser binaries; if you only ran `.venv/bin/playwright install chromium` yourself (or skipped `make install`), Firefox/WebKit will fail to launch until you also run `.venv/bin/playwright install firefox webkit` - this is a common cause of "nothing happens" when setting `BROWSER=firefox` from an IDE run configuration.
 
 Profiles can inherit with `extends:`. `realistic_ua` (extends `local`) is an experiment with a fixed desktop-Chrome User-Agent, US locale/timezone and a Full-HD viewport: `make e2e PROFILE=realistic_ua`.
 
-**Headless or visible browser** - `pytest.ini` sets `headless = false`, so the browser window is shown by default.
-Override per run with `pytest --headless` / `pytest --headed` or `HEADLESS=true`.
+**Headless or visible browser** - `pytest.ini` sets `headless = true`, so tests run headless by default.
+Override per run with `pytest --headed` / `pytest --headless` or `HEADLESS=false`.
 Precedence: CLI flag > `HEADLESS` env var > `pytest.ini` > config profile. `make ci` always runs headless.
 Direct pytest also works, e.g. `.venv/bin/pytest --data=data/other.json`.
 
 ## Reports
 
-```bash
-make allure-generate # builds reports/allure-report/index.html
-make open           # opens it
-```
-
-The report is generated as a **single self-contained HTML file**, so it opens straight from disk - no `allure serve`, no web server.
-
-Every run produces:
-- **Allure report** with a step per function, a screenshot per item added, the cart screenshot and the collected URLs
-- **Browser console log** attached to failed tests: console messages, uncaught page errors and HTTP responses >= 400 (only when there were any). The same lines go to Python logging under the `browser` logger - see them live with `pytest --log-cli-level=DEBUG`.
-- **JUnit XML** at `reports/junit.xml` (for CI)
-- **Playwright trace** at `reports/traces/*.zip` (on failure, or always with `--profile=ci`). Open with `playwright show-trace <file>`.
-
-## Failure categories & error messages
-
-Every framework error has a tagged, self-explanatory message, for example:
-
-```
-[BUDGET EXCEEDED] Cart subtotal 512.40 ILS is above the allowed 220.00 x 2 item(s) = 440.00 ILS (over by 72.40 ILS).
-[ELEMENT NOT FOUND] 'Add to cart button' was not found on https://www.ebay.com/itm/... within 5000 ms. Tried selectors: [...]
-```
-
-`config/allure/categories.json` (copied into the results automatically) groups failures in the Allure *Categories* tab:
-
-| Category | Status | Meaning |
-|---|---|---|
-| Cart over budget (product defect) | failed | the business rule under test failed |
-| Element not found (page layout changed) | broken | update a locator |
-| Blocked by bot protection | broken | HTTP 403/429 or CAPTCHA - environmental; slow down via `slow_mo_ms` |
-| eBay error page | broken | error page persisted after refreshes - site-side |
-| Login failed | broken | wrong credentials / changed sign-in page |
-| Add to cart not confirmed | broken | out of stock, variant issue |
-| Price could not be parsed | broken | new price format |
-| Network / connectivity | broken | site unreachable (DNS, proxy, VPN) |
-| Timeouts | broken | slow page / network |
-| No items in price range | skipped | 0 results is a valid outcome |
-| Other assertion failures / Unexpected errors | failed / broken | anything else |
-
-Categories are mutually exclusive (verified by `tests/unit/test_categories.py`), so each failure is counted once.
-
-Every page-object action is an `@allure.step`, so the report shows the full flow as a step tree: spec function -> page action -> sub-step, with screenshots attached at the step where they were taken.
+See [docs/REPORTS.md](docs/REPORTS.md) - report formats, failure categories, and screenshots.
 
 ## Architecture
 
@@ -129,14 +89,12 @@ Layering: **test → flow → page objects → utils**. Login runs in the `flow`
 
 ## Assumptions & limitations
 
-- **Authentication**: with no credentials in `.env` (default) the test runs as **guest** - the cart works without an account. When credentials *are* set, any login failure raises `LoginFailedError`. eBay sign-in uses CAPTCHA, which this project does not bypass: in the `local` profile a CAPTCHA falls back to guest (recorded as `auth_mode` in the report); in `ci` (`guest_fallback_on_challenge: false`) it fails the run as *Blocked by bot protection*.
+- **Authentication**: with no credentials in `.env` (default) the test runs as **guest** - the cart works without an account. When credentials *are* set, any login failure raises `LoginFailedError`.
 - **Currency**: comparisons are numeric in whatever currency eBay displays (e.g. ILS when browsing from Israel). `max_price` and `budget_per_item` must be in that same currency.
 - **Price ranges**: an item listed as "$10 to $20" is treated as $20 by default, so the selected variant can never push the cart over budget.
 - **Cart total** is the subtotal shown on the cart page (before shipping/tax).
-- **Error pages & bot protection**: after every navigation the framework waits for the page to load and checks for an error page (HTTP 403/429/5xx, a title/heading such as 'Access Denied' / 'Something went wrong', or eBay's 'Please go back and try again' text). It loads the original URL again with growing pauses (`retry.page_error_retries`, `retry.page_error_backoff_sec`), and only then fails with a clear `[BLOCKED]` or `[PAGE ERROR]` message plus a screenshot. CAPTCHA pages are never refreshed or bypassed - they fail immediately as `[BOT CHALLENGE]`. `slow_mo_ms` (default 500 ms) slows the pace to make blocking less likely.
-- **Why not bypass the bot protection?** There is no documented header or flag that whitelists automation on the public eBay site, and evading the protection (header spoofing, proxies, stealth plugins) is not something a test suite should do. In a real project this is solved with the site owner: a QA bypass header/token on a staging environment, allow-listed CI IPs, or a dedicated test environment - which is what the [eBay Sandbox](https://developer.ebay.com/tools/sandbox) offers (test users, test money), although it covers only part of the site and eBay recommends production for testing search.
-- eBay may change its DOM or rate-limit automated traffic; selectors are kept in the page objects so they are easy to update.
+- **Bot protection & CAPTCHA**: eBay rate-limits and challenges automated traffic - see [docs/BOT_PROTECTION.md](docs/BOT_PROTECTION.md) for detection, retries, the login fallback, and why it's never bypassed.
 
 ## Future improvements
 
-See [FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md).
+See [docs/FUTURE_IMPROVEMENTS.md](docs/FUTURE_IMPROVEMENTS.md).

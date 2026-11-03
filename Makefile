@@ -11,6 +11,7 @@ ALLURE_HOME    := $(TOOLS)/allure-$(ALLURE_VERSION)
 ALLURE         := $(ALLURE_HOME)/bin/allure
 RESULTS        := reports/allure-results
 REPORT         := reports/allure-report
+HISTORY        := reports/allure-history   # persists across --clean (single-file mode writes no history/ of its own)
 
 .DEFAULT_GOAL := help
 .PHONY: help install test e2e unit ci allure-generate report open run clean
@@ -21,10 +22,10 @@ help: ## Show available targets
 $(BIN)/activate:
 	$(PYTHON) -m venv $(VENV)
 
-install: $(BIN)/activate $(ALLURE) ## Create venv, install packages, Chromium and a local Allure CLI
+install: $(BIN)/activate $(ALLURE) ## Create venv, install packages, browsers and a local Allure CLI
 	$(BIN)/pip install -q --upgrade pip
 	$(BIN)/pip install -q -r requirements.txt
-	$(BIN)/playwright install chromium
+	$(BIN)/playwright install chromium firefox webkit
 	@[ -f .env ] || cp .env.example .env
 
 $(ALLURE):
@@ -35,7 +36,7 @@ $(ALLURE):
 test: ## Run all tests (unit + e2e)
 	$(BIN)/pytest --profile=$(PROFILE)
 
-e2e: ## Run only the eBay E2E scenarios (browser visible, see pytest.ini)
+e2e: ## Run only the eBay E2E scenarios (headless by default, see pytest.ini)
 	$(BIN)/pytest -m e2e --profile=$(PROFILE)
 
 unit: ## Run fast unit tests (no browser)
@@ -44,8 +45,12 @@ unit: ## Run fast unit tests (no browser)
 ci: ## Headless run with trace always on
 	$(BIN)/pytest -m e2e --profile=ci --headless
 
-allure-generate: $(ALLURE) ## Build a single-file Allure HTML report (opens without a server)
-	$(ALLURE) generate $(RESULTS) -o $(REPORT) --clean --single-file
+allure-generate: $(ALLURE) ## Build a single-file Allure HTML report (with pass-rate/duration trends across runs)
+	@mkdir -p $(RESULTS)
+	@[ -d $(HISTORY) ] && cp -r $(HISTORY) $(RESULTS)/history || true
+	@$(ALLURE) generate $(RESULTS) -o $(REPORT) --clean
+	@rm -rf $(HISTORY) && cp -r $(REPORT)/history $(HISTORY)
+	@$(ALLURE) generate $(RESULTS) -o $(REPORT) --clean --single-file
 	@echo "Report: $(REPORT)/index.html"
 
 report: allure-generate ## Alias for allure-generate

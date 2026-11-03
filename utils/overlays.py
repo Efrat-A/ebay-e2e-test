@@ -28,9 +28,15 @@ def install_overlay_handlers(page: Page) -> None:
             log.info("Overlay: confirming ship-to location")
             with allure.step("Overlay: confirm ship-to location"):
                 confirm.first.click()
-        else:
+            return
+        close = dialog.get_by_role("button", name=re.compile("close|submit|done|^ok$|not now", re.I))
+        if close.count():
             log.info("Overlay: closing ship-to dialog")
-            dialog.get_by_role("button", name=re.compile("close", re.I)).first.click()
+            close.first.click()
+        else:
+            # unrecognised button wording - Escape can't hang the handler like a missed selector can
+            log.info("Overlay: dismissing ship-to dialog (Escape - no recognised button)")
+            page.keyboard.press("Escape")
 
     page.add_locator_handler(ship_to, confirm_ship_to)
 
