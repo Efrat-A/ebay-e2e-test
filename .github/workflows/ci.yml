@@ -26,12 +26,17 @@ jobs:
       - uses: actions/checkout@v4
 
       # Previous report, if any - only source of Allure trend history and the seed for `latest/`.
+      # Sparse checkout: gh-pages accumulates one folder per run (keep_files: true), so fetch
+      # only reports/latest (root-relative on that branch), not the whole growing history.
       - name: Fetch previous published report
         continue-on-error: true
         uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: gh-pages-prev
+          sparse-checkout: |
+            reports/latest
+          sparse-checkout-cone-mode: false
 
       - uses: astral-sh/setup-uv@v5
 
