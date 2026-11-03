@@ -40,6 +40,8 @@ def load_config(profile: str | None = None) -> dict[str, Any]:
     # Env vars override file values (handy in CI)
     if os.getenv("BROWSER"):
         cfg["browser"] = os.environ["BROWSER"]
+    if os.getenv("SKIP_ON_BOT_PROTECTION"):
+        cfg["skip_on_bot_protection"] = os.environ["SKIP_ON_BOT_PROTECTION"].strip().lower() in ("1", "true", "yes")
     cfg["credentials"] = {
         "username": os.getenv("EBAY_USERNAME"),
         "password": os.getenv("EBAY_PASSWORD"),

@@ -21,6 +21,7 @@ profiles:
     trace: retain-on-failure   # on | off | retain-on-failure
     price_range_strategy: max  # "$10 to $20" -> 20 (conservative, keeps cart under budget)
     guest_fallback_on_challenge: true   # login CAPTCHA -> continue as guest (logged in report)
+    skip_on_bot_protection: false   # true: a CAPTCHA/403/429 anywhere reports as SKIPPED instead of broken/failed
 
   ci:
     base_url: "https://www.ebay.com"
@@ -41,6 +42,7 @@ profiles:
     trace: on
     price_range_strategy: max
     guest_fallback_on_challenge: false  # CI: a blocked login is a failure
+    skip_on_bot_protection: false   # true: a CAPTCHA/403/429 anywhere reports as SKIPPED instead of broken/failed
 
   # Experiment: browser identity used in another public solution of this assignment
   # (AlonHrtmn/ebay-testing). Fixed desktop-Chrome User-Agent, US locale/timezone,

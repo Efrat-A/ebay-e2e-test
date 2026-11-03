@@ -12,11 +12,14 @@ from playwright.sync_api import sync_playwright
 
 from utils.browser_logs import BrowserLogCollector
 from utils.config_loader import load_config, load_scenarios
+from utils.errors import AccessBlockedError, BotChallengeError
 
 ROOT = Path(__file__).resolve().parent
 REPORTS = ROOT / "reports"
 CATEGORIES = ROOT / "config" / "allure" / "categories.json"
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
+# No logging.basicConfig() here - it would attach its own handler straight to stderr,
+# bypassing pytest.ini's log_cli/log_cli_level entirely. pytest's own logging plugin
+# captures everything regardless; log_cli only controls whether it's also echoed live.
 
 
 def pytest_addoption(parser):
@@ -95,7 +98,15 @@ def _context_options(config) -> dict:
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
-    setattr(item, f"rep_{outcome.get_result().when}", outcome.get_result())
+    report = outcome.get_result()
+    exc = call.excinfo.value if call.excinfo else None
+    if report.failed and isinstance(exc, (BotChallengeError, AccessBlockedError)):
+        cfg = load_config(item.config.getoption("--profile"))
+        if cfg.get("skip_on_bot_protection", False):
+            report.outcome = "skipped"
+            path, lineno, _ = item.location
+            report.longrepr = (path, (lineno or 0) + 1, f"Skipped: [BOT PROTECTION] {exc}")
+    setattr(item, f"rep_{report.when}", report)
 
 
 @pytest.fixture
