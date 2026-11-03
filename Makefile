@@ -1,9 +1,8 @@
 # eBay E2E automation - common tasks
 # Usage: make <target>   (run `make help` for the list)
 
-PYTHON         ?= python3
-VENV           := .venv
-BIN            := $(VENV)/bin
+UV             ?= uv
+PYTEST         := $(UV) run pytest
 PROFILE        ?= local
 ALLURE_VERSION ?= 2.32.0
 TOOLS          := .tools
@@ -19,13 +18,9 @@ HISTORY        := reports/allure-history   # persists across --clean (single-fil
 help: ## Show available targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-$(BIN)/activate:
-	$(PYTHON) -m venv $(VENV)
-
-install: $(BIN)/activate $(ALLURE) ## Create venv, install packages, browsers and a local Allure CLI
-	$(BIN)/pip install -q --upgrade pip
-	$(BIN)/pip install -q -r requirements.txt
-	$(BIN)/playwright install chromium firefox webkit
+install: $(ALLURE) ## Create venv (uv), install packages, browsers and a local Allure CLI
+	$(UV) sync
+	$(UV) run playwright install chromium firefox webkit
 	@[ -f .env ] || cp .env.example .env
 
 $(ALLURE):
@@ -34,16 +29,16 @@ $(ALLURE):
 	curl -sSL https://github.com/allure-framework/allure2/releases/download/$(ALLURE_VERSION)/allure-$(ALLURE_VERSION).tgz | tar -xz -C $(TOOLS)
 
 test: ## Run all tests (unit + e2e)
-	$(BIN)/pytest --profile=$(PROFILE)
+	$(PYTEST) --profile=$(PROFILE)
 
 e2e: ## Run only the eBay E2E scenarios (headless by default, see pytest.ini)
-	$(BIN)/pytest -m e2e --profile=$(PROFILE)
+	$(PYTEST) -m e2e --profile=$(PROFILE)
 
 unit: ## Run fast unit tests (no browser)
-	$(BIN)/pytest tests/unit
+	$(PYTEST) tests/unit
 
 ci: ## Headless run with trace always on
-	$(BIN)/pytest -m e2e --profile=ci --headless
+	$(PYTEST) -m e2e --profile=ci --headless
 
 allure-generate: $(ALLURE) ## Build a single-file Allure HTML report (with pass-rate/duration trends across runs)
 	@mkdir -p $(RESULTS)

@@ -6,6 +6,7 @@ Python · Playwright · pytest · Allure · POM · OOP · Data-Driven.
 ## Prerequisites
 
 - Python 3.10+
+- [`uv`](https://docs.astral.sh/uv/) (package/venv manager; `brew install uv`)
 - Java (only for building the Allure report; `brew install openjdk`)
 - `make`, `curl`
 
@@ -14,7 +15,7 @@ No global Allure install is needed: `make install` downloads the Allure CLI into
 ## Setup
 
 ```bash
-make install        # .venv + packages + Chromium + local Allure CLI + .env from template
+make install        # uv-managed .venv + packages + browsers + local Allure CLI + .env from template
 ```
 
 ## Run
@@ -28,14 +29,14 @@ make test           # everything
 make help           # list all targets
 ```
 
-Options: `make e2e PROFILE=ci`, `BROWSER=firefox make e2e` (also `webkit`). `make install` downloads all three browser binaries; if you only ran `.venv/bin/playwright install chromium` yourself (or skipped `make install`), Firefox/WebKit will fail to launch until you also run `.venv/bin/playwright install firefox webkit` - this is a common cause of "nothing happens" when setting `BROWSER=firefox` from an IDE run configuration.
+Options: `make e2e PROFILE=ci`, `BROWSER=firefox make e2e` (also `webkit`). `make install` downloads all three browser binaries; if you only ran `uv run playwright install chromium` yourself (or skipped `make install`), Firefox/WebKit will fail to launch until you also run `uv run playwright install firefox webkit` - this is a common cause of "nothing happens" when setting `BROWSER=firefox` from an IDE run configuration.
 
 Profiles can inherit with `extends:`. `realistic_ua` (extends `local`) is an experiment with a fixed desktop-Chrome User-Agent, US locale/timezone and a Full-HD viewport: `make e2e PROFILE=realistic_ua`.
 
 **Headless or visible browser** - `pytest.ini` sets `headless = true`, so tests run headless by default.
 Override per run with `pytest --headed` / `pytest --headless` or `HEADLESS=false`.
 Precedence: CLI flag > `HEADLESS` env var > `pytest.ini` > config profile. `make ci` always runs headless.
-Direct pytest also works, e.g. `.venv/bin/pytest --data=data/other.json`.
+Direct pytest also works, e.g. `uv run pytest --data=data/other.json`.
 
 ## Reports
 
