@@ -29,53 +29,13 @@ make test           # everything
 make help           # list all targets
 ```
 
-Options: `make e2e PROFILE=ci`, `BROWSER=firefox make e2e` (also `webkit`). `make install` downloads all three browser binaries; if you only ran `uv run playwright install chromium` yourself (or skipped `make install`), Firefox/WebKit will fail to launch until you also run `uv run playwright install firefox webkit` - this is a common cause of "nothing happens" when setting `BROWSER=firefox` from an IDE run configuration.
+**Browsers**: e2e tests run on **both Chromium and Firefox by default** (each scenario x each browser). Pin to a single engine with `BROWSER=firefox make e2e` (also `webkit`). Options: `make e2e PROFILE=ci`. `make install` downloads all three browser binaries; if you only ran `uv run playwright install chromium` yourself (or skipped `make install`), Firefox/WebKit will fail to launch until you also run `uv run playwright install firefox webkit` - this is a common cause of "nothing happens" when setting `BROWSER=firefox` from an IDE run configuration.
 
 Profiles can inherit with `extends:`. `realistic_ua` (extends `local`) is an experiment with a fixed desktop-Chrome User-Agent, US locale/timezone and a Full-HD viewport: `make e2e PROFILE=realistic_ua`.
-
-**Headless or visible browser** - `pytest.ini` sets `headless = true`, so tests run headless by default.
-Override per run with `pytest --headed` / `pytest --headless` or `HEADLESS=false`.
-Precedence: CLI flag > `HEADLESS` env var > `pytest.ini` > config profile. `make ci` always runs headless.
-Direct pytest also works, e.g. `uv run pytest --data=data/other.json`.
 
 ## Reports
 
 See [docs/REPORTS.md](docs/REPORTS.md) - report formats, failure categories, and screenshots.
-
-## Architecture
-
-```
-config/config.yaml      environment profiles (local / ci): URLs, browser, timeouts, retries
-config/allure/          Allure categories.json
-data/test_data.json     test scenarios (query, max_price, limit, budget_per_item)
-pages/                  Page Objects - one class per page, locators live only here
-  base_page.py          navigation, popup dismissal, screenshots
-  login_page.py         user login or guest fallback
-  search_page.py        search, price filter, XPath result scan, paging
-  item_page.py          random variant selection, add to cart
-  cart_page.py          read subtotal
-flows/shopping_flow.py  the 4 required functions, composed from the pages
-utils/
-  browser_logs.py       console / page errors / HTTP >= 400 -> logging + failure attachment
-  errors.py             tagged domain errors (feed the Allure categories)
-  smart_locator.py      multi-selector fallback for eBay's parallel layouts
-  price_parser.py       "$10 to $20", "ILS 1,299.00", "Free shipping" -> number
-  retry.py              retry decorator for flaky UI steps
-  config_loader.py      YAML + .env + env-var overrides
-tests/e2e/conftest.py   `flow` fixture: authentication (user or guest) before every E2E test
-tests/e2e/test_ebay_e2e.py  data-driven E2E test (no locators, no waits, no login - only the scenario)
-tests/unit/             unit tests: price parser, failure categories
-conftest.py             browser/page fixtures, scenario parametrization, trace & failure screenshot
-```
-
-Layering: **test → flow → page objects → utils**. Login runs in the `flow` fixture, so in Allure it appears under *Set up* and a login problem is never mistaken for a scenario failure. Tests read like the scenario; pages own locators; utils hold logic that doesn't depend on a page.
-
-| Spec function (TypeScript)       | Python                                   |
-|----------------------------------|------------------------------------------|
-| authentication                   | `ShoppingFlow.authenticate()`            |
-| `searchItemsByNameUnderPrice`    | `search_items_by_name_under_price()`     |
-| `addItemsToCart`                 | `add_items_to_cart()`                    |
-| `assertCartTotalNotExceeds`      | `assert_cart_total_not_exceeds()`        |
 
 ## Robustness
 

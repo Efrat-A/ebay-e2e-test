@@ -26,6 +26,7 @@ class ShoppingFlow:
     def __init__(self, page: Page, config: dict[str, Any]):
         self.page = page
         self.config = config
+        self.auth_mode: str | None = None
         install_overlay_handlers(page)
         self.login_page = LoginPage(page, config)
         self.search_page = SearchPage(page, config)
@@ -33,7 +34,8 @@ class ShoppingFlow:
         self.cart_page = CartPage(page, config)
 
     def authenticate(self) -> str:  # the LoginPage step already names this in the report
-        return self.login_page.login_or_guest()
+        self.auth_mode = self.login_page.login_or_guest()
+        return self.auth_mode
 
     @allure.step("searchItemsByNameUnderPrice({query}, {max_price}, {limit})")
     def search_items_by_name_under_price(self, query: str, max_price: float, limit: int = 5) -> list[str]:

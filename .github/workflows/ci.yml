@@ -1,0 +1,116 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * *" # daily e2e against live eBay
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: "Also run live e2e on ebay.com"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # push the Allure report to gh-pages
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Previous report, if any - only source of Allure trend history and the seed for `latest/`.
+      - name: Fetch previous published report
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages-prev
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install
+        run: make install
+
+      - name: Unit tests
+        run: make unit
+
+      - name: Live e2e (non-blocking - eBay's bot protection makes this inherently flaky)
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_e2e)
+        continue-on-error: true
+        run: make ci
+
+      - name: Record run identity (commit, timestamp) for the Allure Environment panel
+        run: |
+          mkdir -p reports/allure-results
+          {
+            echo "Commit=${GITHUB_SHA::7}"
+            echo "Branch=${GITHUB_REF_NAME}"
+            echo "Triggered_by=${GITHUB_EVENT_NAME}"
+            echo "Run=${GITHUB_RUN_ID}"
+            echo "Timestamp_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > reports/allure-results/environment.properties
+
+      - name: Seed Allure trend history from the last published report
+        run: |
+          mkdir -p reports/allure-history
+          [ -d gh-pages-prev/reports/latest/history ] && cp -r gh-pages-prev/reports/latest/history/* reports/allure-history/ || true
+
+      - name: Build Allure report
+        if: always()
+        run: make allure-generate
+
+      - name: Stage report for publishing
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          RUN_ID="$(date -u +%Y%m%d-%H%M%S)_${GITHUB_SHA::7}"
+          echo "RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          mkdir -p "stage/reports/$RUN_ID" stage/reports/latest
+          cp reports/allure-report/index.html "stage/reports/$RUN_ID/index.html"
+          cp reports/allure-report/index.html stage/reports/latest/index.html
+          mkdir -p stage/reports/latest/history
+          cp -r reports/allure-history/* stage/reports/latest/history/ 2>/dev/null || true
+          if ls reports/traces/*.zip >/dev/null 2>&1; then
+            mkdir -p "stage/reports/$RUN_ID/traces"
+            cp reports/traces/*.zip "stage/reports/$RUN_ID/traces/"
+          fi
+
+      - name: Publish to GitHub Pages
+        if: always() && github.event_name != 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: stage
+          keep_files: true
+
+      - name: Job summary
+        if: always()
+        run: |
+          PAGES_URL="https://$(echo ${GITHUB_REPOSITORY} | cut -d/ -f1 | tr '[:upper:]' '[:lower:]').github.io/$(echo ${GITHUB_REPOSITORY} | cut -d/ -f2)"
+          {
+            echo "### eBay E2E - run report"
+            echo "- Commit: \`${GITHUB_SHA::7}\` on \`${GITHUB_REF_NAME}\`"
+            echo "- Triggered by: ${GITHUB_EVENT_NAME}"
+            if [ "${{ github.event_name }}" != "pull_request" ]; then
+              echo "- [This run's report]($PAGES_URL/reports/$RUN_ID/index.html)"
+              echo "- [Latest report]($PAGES_URL/reports/latest/index.html)"
+            else
+              echo "- (report not published for pull_request events - see the artifact below)"
+            fi
+            if ls reports/traces/*.zip >/dev/null 2>&1; then
+              echo "- Traces (download the artifact, then \`playwright show-trace <file>\`, or open via https://trace.playwright.dev/ once published)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports-${{ github.run_id }}
+          path: reports/
+          retention-days: 14

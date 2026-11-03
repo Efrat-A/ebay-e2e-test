@@ -31,11 +31,22 @@ def pytest_addoption(parser):
                   default="")
 
 
+DEFAULT_BROWSERS = ["chromium", "firefox"]
+
+
 def pytest_generate_tests(metafunc):
-    """Data-driven: one test run per scenario in data/test_data.json."""
+    """Data-driven: one test run per scenario in data/test_data.json.
+
+    Also runs every e2e test once per browser - chromium + firefox by default, or a single
+    engine when BROWSER is set (e.g. BROWSER=webkit), since webkit isn't part of the default pair.
+    """
     if "scenario" in metafunc.fixturenames:
         scenarios = load_scenarios(metafunc.config.getoption("--data"))
         metafunc.parametrize("scenario", scenarios, ids=[s["id"] for s in scenarios])
+    if "browser" in metafunc.fixturenames:
+        env_browser = os.getenv("BROWSER")
+        browsers = [env_browser] if env_browser else DEFAULT_BROWSERS
+        metafunc.parametrize("browser", browsers, indirect=True, scope="session", ids=browsers)
 
 
 def _resolve_headless(pytestconfig, profile_value: bool) -> bool:
@@ -61,9 +72,10 @@ def config(pytestconfig):
 
 
 @pytest.fixture(scope="session")
-def browser(config):
+def browser(request, config):
+    name = getattr(request, "param", None) or config["browser"]
     with sync_playwright() as p:
-        browser = getattr(p, config["browser"]).launch(
+        browser = getattr(p, name).launch(
             headless=config["headless"], slow_mo=config["slow_mo_ms"]
         )
         yield browser

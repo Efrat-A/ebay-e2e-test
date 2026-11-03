@@ -15,6 +15,10 @@ Every run produces:
 
 Trend history (pass-rate, duration, flaky markers across runs) carries forward automatically between generates - see `make allure-generate` in the [Makefile](../Makefile).
 
+## CI reports
+
+Every CI run (`.github/workflows/ci.yml`) publishes its Allure report to GitHub Pages - one permanent page per run (`reports/<timestamp>_<commit>/index.html`) plus a `reports/latest/index.html` pointer, with trend history carried across runs via the `gh-pages` branch. The run's commit, branch, trigger and timestamp are recorded in the report's Environment panel. Links to both are printed in the workflow's job summary; traces and screenshots are also uploaded as a 14-day workflow artifact. `pull_request` runs skip publishing (no push access needed) and rely on the artifact instead.
+
 ## Failure categories & error messages
 
 Every framework error has a tagged, self-explanatory message, for example:
