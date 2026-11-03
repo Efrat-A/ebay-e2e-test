@@ -7,8 +7,9 @@ __pycache__/
 # Secrets
 .env
 
-# Test output (reports, screenshots, traces)
-reports/
+# Test output (reports, screenshots, traces) - except a committed sample report
+reports/*
+!reports/sample/
 
 # Local Allure CLI downloaded by `make install`
 .tools/
